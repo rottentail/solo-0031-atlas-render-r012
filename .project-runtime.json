@@ -71,6 +71,22 @@
     {
       "workflow_id": "observe-service",
       "command": "python3 scripts/walkthrough.py --workflow observe-service"
+    },
+    {
+      "workflow_id": "component-author",
+      "command": "python3 scripts/walkthrough.py --workflow components-adopt"
+    },
+    {
+      "workflow_id": "component-adopt",
+      "command": "python3 scripts/walkthrough.py --workflow components-adopt"
+    },
+    {
+      "workflow_id": "component-disable",
+      "command": "python3 scripts/walkthrough.py --workflow components-freeze-exchange"
+    },
+    {
+      "workflow_id": "component-exchange",
+      "command": "python3 scripts/walkthrough.py --workflow components-freeze-exchange"
     }
   ],
   "environment": {

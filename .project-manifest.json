@@ -6,7 +6,7 @@
     {
       "id": "model",
       "path": "internal/model",
-      "responsibility": "文档、快照、任务、结果及领域错误"
+      "responsibility": "文档、组件修订、快照、任务、结果及领域错误"
     },
     {
       "id": "geometry",
@@ -21,7 +21,7 @@
     {
       "id": "scene",
       "path": "internal/scene",
-      "responsibility": "有界场景图校验与素材引用遍历"
+      "responsibility": "有界场景图与组件展开校验及闭包遍历"
     },
     {
       "id": "codec",
@@ -31,17 +31,17 @@
     {
       "id": "raster",
       "path": "internal/raster",
-      "responsibility": "场景编译、裁剪链和逐像素合成"
+      "responsibility": "场景与组件实例编译、裁剪链和逐像素合成"
     },
     {
       "id": "persist",
       "path": "internal/persist",
-      "responsibility": "独占打开、状态校验和原子替换"
+      "responsibility": "独占打开、状态与组件闭包校验和原子替换"
     },
     {
       "id": "service",
       "path": "internal/service",
-      "responsibility": "场景、素材、快照和任务业务转换"
+      "responsibility": "场景、组件、素材、快照和任务业务转换"
     },
     {
       "id": "engine",
@@ -51,7 +51,7 @@
     {
       "id": "bundle",
       "path": "internal/bundle",
-      "responsibility": "带校验的快照交换包"
+      "responsibility": "携带组件与素材闭包的快照交换包"
     },
     {
       "id": "observe",
@@ -170,6 +170,79 @@
         "通过存储或渲染结果观察已提交事实"
       ],
       "verification": "python3 scripts/walkthrough.py --workflow freeze-scene"
+    },
+    {
+      "id": "component-author",
+      "name": "创作可复用组件",
+      "entry": "PUT /v1/components/{id}",
+      "success": "新组件写入不可变修订1且可按修订追加",
+      "failure": "非法图层或过期修订拒绝，循环引用返回400",
+      "module_ids": [
+        "httpapi",
+        "service",
+        "scene",
+        "persist"
+      ],
+      "steps": [
+        "经公开HTTP入口完成领域转换",
+        "通过存储或渲染结果观察已提交事实"
+      ],
+      "verification": "python3 scripts/walkthrough.py --workflow components-adopt"
+    },
+    {
+      "id": "component-adopt",
+      "name": "场景采用组件更新",
+      "entry": "POST /v1/scenes/{id}/components/{component}/adopt",
+      "success": "同一事务核对场景修订并移动全部直接pin",
+      "failure": "并发编辑只有一方成功，混用修订不发布",
+      "module_ids": [
+        "httpapi",
+        "service",
+        "scene",
+        "persist"
+      ],
+      "steps": [
+        "经公开HTTP入口完成领域转换",
+        "通过存储或渲染结果观察已提交事实"
+      ],
+      "verification": "python3 scripts/walkthrough.py --workflow components-adopt"
+    },
+    {
+      "id": "component-disable",
+      "name": "停用组件与历史渲染",
+      "entry": "POST /v1/components/{id}/state",
+      "success": "新修订、采用、引用和冻结被拒绝",
+      "failure": "已冻结快照仍按固定闭包渲染",
+      "module_ids": [
+        "httpapi",
+        "service",
+        "scene",
+        "raster",
+        "persist"
+      ],
+      "steps": [
+        "经公开HTTP入口完成领域转换",
+        "通过存储或渲染结果观察已提交事实"
+      ],
+      "verification": "python3 scripts/walkthrough.py --workflow components-freeze-exchange"
+    },
+    {
+      "id": "component-exchange",
+      "name": "组件闭包交换",
+      "entry": "GET /v1/snapshots/{id}/package",
+      "success": "包携带可达组件修订和素材字节",
+      "failure": "篡改组件内容或pin导致整体拒绝，不落部分数据",
+      "module_ids": [
+        "httpapi",
+        "service",
+        "bundle",
+        "persist"
+      ],
+      "steps": [
+        "经公开HTTP入口完成领域转换",
+        "通过存储或渲染结果观察已提交事实"
+      ],
+      "verification": "python3 scripts/walkthrough.py --workflow components-freeze-exchange"
     },
     {
       "id": "revoke-snapshot",
@@ -364,7 +437,9 @@
       "capacity",
       "lineage",
       "versioning_audit",
-      "delete_removal"
+      "delete_removal",
+      "component_lineage",
+      "nested_closure"
     ]
   }
 }

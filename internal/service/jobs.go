@@ -29,6 +29,9 @@ func (s *Service) Submit(snapshotID string, scale int, key string) (model.Job, e
 		if snap.State != "active" {
 			return model.Conflict("snapshot is revoked")
 		}
+		// Disabling a component stops new production, but a snapshot frozen
+		// earlier already carries the complete pinned closure and keeps
+		// rendering exactly like an asset retired after freezing.
 		if _, e := raster.Compile(snap, scale); e != nil {
 			return e
 		}

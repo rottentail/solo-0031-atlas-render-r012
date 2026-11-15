@@ -26,6 +26,12 @@ func Validate(p Package) error {
 	if model.CanonicalDigest(p.Snapshot) != p.Digest {
 		return model.Invalid("package checksum mismatch")
 	}
+	// The embedded snapshot digest commits to the document as well as to the
+	// complete asset and component closure, so a tampered pin is rejected even
+	// when the outer checksum is recomputed by the sender.
+	if model.SnapshotDigest(p.Snapshot) != p.Snapshot.Digest {
+		return model.Invalid("package snapshot digest mismatch")
+	}
 	if e := persist.ValidateSnapshot(p.Snapshot); e != nil {
 		return e
 	}

@@ -29,7 +29,10 @@ type Plan struct {
 }
 
 func Compile(s model.Snapshot, scale int) (Plan, error) {
-	if e := scene.Validate(s.Document); e != nil {
+	// A snapshot is rendered exclusively from its own pinned closure. The live
+	// component registry and live asset records are never consulted.
+	registry := scene.FromPinned(s.Components)
+	if e := scene.Validate(s.Document, registry); e != nil {
 		return Plan{}, e
 	}
 	if scale != 1 && scale != 2 {
@@ -52,6 +55,19 @@ func Compile(s model.Snapshot, scale int) (Plan, error) {
 			a := alpha * l.Opacity
 			if l.Kind == "group" {
 				if e := walk(l.Children, world, localClips, a); e != nil {
+					return e
+				}
+				continue
+			}
+			if l.Kind == "component" {
+				pinned, ok := s.Components[scene.PinKey(l.ComponentID, l.ComponentRevision)]
+				if !ok {
+					return model.Invalid("missing pinned component %s", scene.PinKey(l.ComponentID, l.ComponentRevision))
+				}
+				// The instance supplies the outer transform, clip and opacity;
+				// the component body is expanded in place so descendants obey
+				// both the instance and their own nested transforms.
+				if e := walk(pinned.Document.Layers, world, localClips, a); e != nil {
 					return e
 				}
 				continue

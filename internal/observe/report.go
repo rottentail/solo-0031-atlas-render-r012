@@ -62,5 +62,5 @@ func Summary(st model.State) map[string]any {
 	for _, a := range st.Artifacts {
 		bytes += len(a.PNG)
 	}
-	return map[string]any{"sceneCount": len(st.Scenes), "assetCount": len(st.Assets), "snapshotCount": len(st.Snapshots), "jobs": jobs, "artifactBytes": bytes, "sequence": st.Sequence}
+	return map[string]any{"sceneCount": len(st.Scenes), "assetCount": len(st.Assets), "componentCount": len(st.Components), "snapshotCount": len(st.Snapshots), "jobs": jobs, "artifactBytes": bytes, "sequence": st.Sequence}
 }

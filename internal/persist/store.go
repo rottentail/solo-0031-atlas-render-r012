@@ -41,6 +41,11 @@ func Open(path string) (*Store, error) {
 			s.Close()
 			return nil, fmt.Errorf("invalid persisted JSON: %w", e)
 		}
+		if s.state.Components == nil {
+			// Older state files predate components. They are upgraded in
+			// memory; the first successful transaction writes the map out.
+			s.state.Components = map[string]model.Component{}
+		}
 		if e = Validate(s.state); e != nil {
 			s.Close()
 			return nil, e

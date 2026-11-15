@@ -11,14 +11,17 @@ func Validate(s model.State) error {
 	if s.Version != model.FormatVersion {
 		return fmt.Errorf("unsupported state version %d", s.Version)
 	}
-	if s.Scenes == nil || s.Assets == nil || s.Snapshots == nil || s.Jobs == nil || s.Artifacts == nil || s.Receipts == nil {
+	if s.Scenes == nil || s.Assets == nil || s.Components == nil || s.Snapshots == nil || s.Jobs == nil || s.Artifacts == nil || s.Receipts == nil {
 		return fmt.Errorf("state maps must be present")
+	}
+	if e := scene.ValidateComponentRegistry(s.Components); e != nil {
+		return e
 	}
 	for id, v := range s.Scenes {
 		if id != v.ID || !scene.ValidID(id) || v.Revision < 1 || (v.State != "active" && v.State != "archived") {
 			return fmt.Errorf("invalid scene record %s", id)
 		}
-		if e := scene.Validate(v.Document); e != nil {
+		if e := scene.Validate(v.Document, s.Components); e != nil {
 			return e
 		}
 	}
@@ -107,13 +110,34 @@ func ValidateAsset(a model.Asset) error {
 	return nil
 }
 func ValidateSnapshot(v model.Snapshot) error {
-	if e := scene.Validate(v.Document); e != nil {
+	if v.Components == nil {
+		v.Components = map[string]model.PinnedComponent{}
+	}
+	// Frozen pins resolve exclusively through the snapshot closure. The live
+	// component registry is deliberately not consulted here.
+	registry := scene.FromPinned(v.Components)
+	if e := scene.Validate(v.Document, registry); e != nil {
 		return e
 	}
 	if model.SnapshotDigest(v) != v.Digest {
 		return model.Invalid("snapshot digest mismatch")
 	}
-	refs := scene.References(v.Document)
+	closure, refs, e := scene.Closure(v.Document, registry)
+	if e != nil {
+		return e
+	}
+	if len(closure) != len(v.Components) {
+		return model.Invalid("snapshot component closure mismatch")
+	}
+	for key, p := range v.Components {
+		q, ok := closure[key]
+		if !ok || p.ID != q.ID || p.Revision != q.Revision {
+			return model.Invalid("snapshot component pin mismatch")
+		}
+		if model.CanonicalDigest(p.Document) != model.CanonicalDigest(q.Document) {
+			return model.Invalid("snapshot component content mismatch")
+		}
+	}
 	if len(refs) != len(v.Assets) {
 		return model.Invalid("snapshot asset closure mismatch")
 	}

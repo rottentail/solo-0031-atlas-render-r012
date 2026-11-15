@@ -14,9 +14,13 @@ func (s *Service) Export(id string) (bundle.Package, error) {
 	}
 	return bundle.Export(v), nil
 }
+
+// Import atomically installs the package's scene, assets and component pins.
+// A package carries the complete closure; the destination must not already
+// use the same component id for different content or a different revision.
 func (s *Service) Import(id, name string, p bundle.Package) (model.Scene, error) {
 	var out model.Scene
-	if !scene.ValidID(id) || len(name) < 1 || len(name) > 160 {
+	if !scene.ValidID(id) || !scene.TrimmedName(name) {
 		return out, model.Invalid("invalid import destination")
 	}
 	if e := bundle.Validate(p); e != nil {
@@ -35,6 +39,23 @@ func (s *Service) Import(id, name string, p bundle.Package) (model.Scene, error)
 				a.State = "available"
 				st.Assets[aid] = a
 			}
+		}
+		for _, p := range p.Snapshot.Components {
+			existing, ok := st.Components[p.ID]
+			if !ok {
+				st.Components[p.ID] = model.Component{ID: p.ID, Name: p.Name, Revision: p.Revision, State: "active", Revisions: []model.ComponentRevision{{Revision: p.Revision, Document: p.Document, CreatedAt: time.Now().UTC()}}, UpdatedAt: time.Now().UTC()}
+				continue
+			}
+			if existing.State != "active" {
+				return model.Conflictf("destination component %s is disabled", p.ID)
+			}
+			rev, ok := scene.ComponentRevision(existing, p.Revision)
+			if !ok || model.CanonicalDigest(rev.Document) != model.CanonicalDigest(p.Document) {
+				return model.Conflict("destination component conflicts with package")
+			}
+		}
+		if e := scene.Validate(p.Snapshot.Document, st.Components); e != nil {
+			return e
 		}
 		out = model.Scene{ID: id, Name: name, Revision: 1, State: "active", Document: p.Snapshot.Document, UpdatedAt: time.Now().UTC()}
 		st.Scenes[id] = out
